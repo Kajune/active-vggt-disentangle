@@ -1,0 +1,43 @@
+defaults:
+  - default.yaml
+
+exp_name: blender
+max_img_per_gpu: 20
+
+optim:
+  optimizer:
+    lr: 2e-5
+
+  options:
+    lr:
+      - scheduler:
+          _target_: fvcore.common.param_scheduler.CompositeParamScheduler
+          schedulers:
+            - _target_: fvcore.common.param_scheduler.LinearParamScheduler
+              start_value: 1e-7
+              end_value: 2e-5
+            - _target_: fvcore.common.param_scheduler.CosineParamScheduler
+              start_value: 2e-5
+              end_value: 1e-7
+          lengths: [0.05, 0.95]
+          interval_scaling: ['rescaled', 'rescaled']
+
+  frozen_module_names:
+      - "*aggregator.patch_embed*"
+      # - "*aggregator.frame_blocks*"
+      # - "*aggregator.global_blocks*"
+
+checkpoint:
+  resume_checkpoint_path: ckpt/VGGT-1B.pth
+  save_dir: output/${exp_name}/ckpts
+  save_freq: 5
+
+logging:
+  log_dir: output/${exp_name}/logs
+
+max_epochs: 10
+val_epoch_freq: 1
+limit_train_batches: 800
+limit_val_batches: 80
+distributed:
+  find_unused_parameters: true

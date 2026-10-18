@@ -1,0 +1,187 @@
+defaults:
+  - blender.yaml
+
+exp_name: blender_active
+max_epochs: 10
+
+data:
+  train:
+    common_config:
+      img_nums: [1,24]
+      load_track: true
+      track_num: 64
+    dataset:
+      dataset_configs:
+        - _target_: data.datasets.blender.BlenderDataset
+          split: train
+          dataset_dir: datasets/blender
+          include_projector: true
+          proj_as_camera: false
+          scenes:
+            - random/*
+
+  val:
+    common_config:
+      img_nums: [1,24]
+      load_track: true
+      track_num: 64
+    dataset:
+      dataset_configs:
+        - _target_: data.datasets.blender.BlenderDataset
+          split: test
+          dataset_dir: datasets/blender
+          include_projector: true
+          proj_as_camera: false
+          scenes:
+            - klab_sl2/config*/block/*/*/*
+            - klab_sl2/config*/box/*/*/*
+            - klab_sl2/config*/dog/*/*/*
+            - klab_sl2/config*/head/*/*/*
+            - klab_sl2/config*/pot/*/*/*
+
+  test:
+    common_config:
+      img_nums: [1,24]
+      load_track: true
+      track_num: 64
+    dataset:
+      dataset_configs:
+        - _target_: data.datasets.blender.BlenderDataset
+          split: test
+          dataset_dir: datasets/blender
+          include_projector: true
+          proj_as_camera: false
+          scenes:
+            - klab_sl2/config3/block/*/*/random_grid
+            - klab_sl2/config3/block/*/*/random_dot
+            - klab_sl2/config3/block/*/*/hamming
+            - klab_sl2/config3/box/*/*/random_grid
+            - klab_sl2/config3/box/*/*/random_dot
+            - klab_sl2/config3/box/*/*/hamming
+            - klab_sl2/config3/dog/*/*/random_grid
+            - klab_sl2/config3/dog/*/*/random_dot
+            - klab_sl2/config3/dog/*/*/hamming
+            - klab_sl2/config3/head/*/*/random_grid
+            - klab_sl2/config3/head/*/*/random_dot
+            - klab_sl2/config3/head/*/*/hamming
+            - klab_sl2/config3/pot/*/*/random_grid
+            - klab_sl2/config3/pot/*/*/random_dot
+            - klab_sl2/config3/pot/*/*/hamming
+
+logging:
+  scalar_keys_to_log:
+    train:
+      keys_to_log:
+        - loss_objective
+        - loss_camera
+        - loss_T
+        - loss_R
+        - loss_FL
+        - loss_conf_depth
+        - loss_reg_depth
+        - loss_grad_depth
+        - loss_conf_point
+        - loss_reg_point
+        - loss_grad_point
+        - loss_projector
+        - loss_proj_T
+        - loss_proj_R
+        - loss_reg_coord
+        - loss_conf_coord
+        - loss_depth_mask
+        - loss_reg_ls_depth
+        - loss_conf_ls_depth
+        - loss_grad_ls_depth
+        - loss_icp
+        - loss_track
+    val:
+      keys_to_log:
+        - loss_objective
+        - loss_camera
+        - loss_T
+        - loss_R
+        - loss_FL
+        - loss_conf_depth
+        - loss_reg_depth
+        - loss_grad_depth
+        - loss_conf_point
+        - loss_reg_point
+        - loss_grad_point
+        - loss_projector
+        - loss_proj_T
+        - loss_proj_R
+        - loss_reg_coord
+        - loss_conf_coord
+        - loss_depth_mask
+        - loss_reg_ls_depth
+        - loss_conf_ls_depth
+        - loss_grad_ls_depth
+        - loss_icp
+        - loss_track
+
+model:
+  input_pattern_mode: "residual"
+  enable_camera: True
+  enable_depth: True
+  enable_point: True
+  enable_track: False
+  enable_projection: True
+  pattern_residual_weight: 0.05
+  enable_ls: true
+  ls_mode: proj_depth
+  use_pred_cam_for_ls: false
+  use_pred_proj_for_ls: false
+
+loss:
+  _target_: loss.MultitaskLoss
+  camera: 
+    weight: 5.0
+    loss_type: "l1" # The paper uses smooth l1 loss, but we found l1 loss is more stable than smooth l1 and l2 loss.  
+  depth:
+    weight: 1.0
+    gradient_loss_fn: "grad" 
+    valid_range: 0.98
+  point:
+    weight: 1.0
+    gradient_loss_fn: "grad" 
+    valid_range: 0.98
+  track: null
+  projector: 
+    weight: 1.0
+    loss_type: "l1"
+  coord:
+    weight: 1.0
+    loss_type: l1
+  light_sectioning:
+    weight: 1.0
+    gradient_loss_fn: "grad" 
+    valid_range: 0.98
+
+optim:
+  gradient_clip:
+    _target_: train_utils.gradient_clip.GradientClipper
+    configs:
+      - module_name: ["aggregator"]
+        max_norm: 1.0   # feel free to reduce this if you see instabilities
+        norm_type: 2
+      - module_name: ["depth"]
+        max_norm: 1.0   # feel free to reduce this if you see instabilities
+        norm_type: 2
+      - module_name: ["camera"]
+        max_norm: 1.0   # feel free to reduce this if you see instabilities
+        norm_type: 2
+      - module_name: ["point"]
+        max_norm: 1.0   # feel free to reduce this if you see instabilities
+        norm_type: 2
+      - module_name: ["coord"]
+        max_norm: 1.0   # feel free to reduce this if you see instabilities
+        norm_type: 2
+      - module_name: ["projector"]
+        max_norm: 1.0   # feel free to reduce this if you see instabilities
+        norm_type: 2
+      - module_name: ["ls"]
+        max_norm: 1.0   # feel free to reduce this if you see instabilities
+        norm_type: 2
+      - module_name: ["track"]
+        max_norm: 1.0   # feel free to reduce this if you see instabilities
+        norm_type: 2
